@@ -14,6 +14,17 @@ int clock_gettime(clockid_t clk_id, struct timespec *tp) {
     res = real_clock_gettime(clk_id, tp);
     tp->tv_sec = 0;
     tp->tv_nsec = 0;
-    return 0;
+    return res;
 }
 
+int alarm(unsigned seconds) {
+    static int (*real_alarm)(unsigned) = NULL;
+    int res;
+    if(!real_alarm)
+        real_alarm = dlsym(RTLD_NEXT, "alarm");
+    if(!real_alarm)
+        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    seconds = seconds*2;
+    res = real_alarm(seconds);
+    return res;
+}
