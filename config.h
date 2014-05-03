@@ -2,10 +2,10 @@
 #define _CLOCK_SLOW_CONFIG_H
 
 // Application name, used when printing error messages.
-#define APPNAME "clockslow"
+#define APP_NAME "clockslow"
 
 // Environment variable prefix
-#define ENVPREFIX "CLOCKSLOW"
+#define APP_ENV_PREFIX "CLOCKSLOW"
 // clockslow accepts two variables:
 // CLOCKSLOW_START: The epoch time when modified time coincide.
 // CLOCKSLOW_FACTOR: The speed factor of time modification.
