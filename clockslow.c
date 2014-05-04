@@ -37,7 +37,27 @@ int clock_gettime(clockid_t clk_id, struct timespec *tp) {
     if(!real_clock_gettime)
         fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
     res = real_clock_gettime(clk_id, tp);
-    tp->tv_sec = 0;
-    tp->tv_nsec = 0;
+    if(tp) {
+        tp->tv_sec = 0;
+        tp->tv_nsec = 0;
+    }
+    return res;
+}
+
+int nanosleep(const struct timespec *req, struct timespec *rem) {
+    static int (*real_nanosleep)(const struct timespec *, struct timespec *) = NULL;
+    struct timespec *req_ = (struct timespec *) req;
+    int res;
+    if(!real_nanosleep)
+        real_nanosleep = dlsym(RTLD_NEXT, "nanosleep");
+    if(!real_nanosleep)
+        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    req_->tv_sec *= 2;
+    req_->tv_nsec *= 2;
+    res = real_nanosleep(req_, rem);
+    if(rem) {
+        rem->tv_sec /= 2;
+        rem->tv_nsec /= 2;
+    }
     return res;
 }
