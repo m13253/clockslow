@@ -1,12 +1,48 @@
-#include "config.h"
 #define _GNU_SOURCE
+#define _ISOC99_SOURCE
+#include "config.h"
 #include <dlfcn.h>
+#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
+
+static double app_timestart = NAN;
+static double app_timefactor = 1;
+
+static void init_clockslow(void) {
+    if(isnan(app_timestart))
+    {
+        const char *timestart = getenv(APP_ENV_PREFIX "_START");
+        const char *timefactor = getenv(APP_ENV_PREFIX "_FACTOR");
+        if(timestart) {
+            char *endptr;
+            double res = strtod(timestart, &endptr);
+            if(timestart == endptr || !isnormal(res)) // Error
+                timestart = NULL;
+            else
+                app_timestart = res;
+        }
+        if(!timestart) {
+            int (*real_gettimeofday)(struct timeval *, void *) = dlsym(RTLD_NEXT, "gettimeofday");
+            struct timeval tv;
+            real_gettimeofday(&tv, NULL);
+            app_timestart = tv.tv_sec + tv.tv_usec/1000000.0;
+            fprintf(stderr, "%s: set " APP_ENV_PREFIX "_START to %lf\n", APP_NAME, app_timestart);
+        }
+        if(timefactor) {
+            char *endptr;
+            double res = strtod(timefactor, &endptr);
+            if(timefactor != endptr && !isnormal(res))
+                app_timefactor = res;
+        }
+    }
+}
 
 int alarm(unsigned seconds) {
     static int (*real_alarm)(unsigned) = NULL;
     int res;
+    init_clockslow();
     if(!real_alarm)
         real_alarm = dlsym(RTLD_NEXT, "alarm");
     if(!real_alarm)
@@ -19,6 +55,7 @@ int alarm(unsigned seconds) {
 clock_t clock(void) {
     static clock_t (*real_clock)(void) = NULL;
     clock_t res;
+    init_clockslow();
     if(!real_clock)
         real_clock = dlsym(RTLD_NEXT, "clock");
     if(!real_clock)
@@ -32,6 +69,7 @@ clock_t clock(void) {
 int clock_gettime(clockid_t clk_id, struct timespec *tp) {
     static int (*real_clock_gettime)(clockid_t, struct timespec *) = NULL;
     int res;
+    init_clockslow();
     if(!real_clock_gettime)
         real_clock_gettime = dlsym(RTLD_NEXT, "clock_gettime");
     if(!real_clock_gettime)
@@ -48,6 +86,7 @@ int nanosleep(const struct timespec *req, struct timespec *rem) {
     static int (*real_nanosleep)(const struct timespec *, struct timespec *) = NULL;
     struct timespec *req_ = (struct timespec *) req;
     int res;
+    init_clockslow();
     if(!real_nanosleep)
         real_nanosleep = dlsym(RTLD_NEXT, "nanosleep");
     if(!real_nanosleep)

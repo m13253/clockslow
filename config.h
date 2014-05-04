@@ -1,6 +1,9 @@
 #ifndef _CLOCK_SLOW_CONFIG_H
 #define _CLOCK_SLOW_CONFIG_H
 
+// Uncomment the following line to enable debug mode.
+//#define DEBUG
+
 // Application name, used when printing error messages.
 #define APP_NAME "clockslow"
 
