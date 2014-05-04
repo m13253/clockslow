@@ -42,13 +42,16 @@ static void init_clockslow(void) {
 int alarm(unsigned seconds) {
     static int (*real_alarm)(unsigned) = NULL;
     int res;
+    int seconds_ = seconds;
     init_clockslow();
     if(!real_alarm)
         real_alarm = dlsym(RTLD_NEXT, "alarm");
     if(!real_alarm)
         fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
-    seconds = seconds*2;
-    res = real_alarm(seconds);
+    seconds_ *= app_timefactor;
+    if(seconds_ <= 0)
+        seconds_ = seconds;
+    res = real_alarm(seconds_);
     return res;
 }
 
