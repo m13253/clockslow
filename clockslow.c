@@ -254,10 +254,10 @@ int nanosleep(const struct timespec *req, struct timespec *rem) {
         real_nanosleep = dlsym(RTLD_NEXT, "nanosleep");
     if(!real_nanosleep)
         fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
-    timespec_mul(&req_, 1);
+    timespec_div(&req_, 1);
     res = real_nanosleep(&req_, rem);
     if(rem)
-        timespec_div(rem, 1);
+        timespec_mul(rem, 1);
     printf_verbose("nanosleep(");
     printf_verbose_timespec(req);
     printf_verbose(", ");
@@ -267,7 +267,7 @@ int nanosleep(const struct timespec *req, struct timespec *rem) {
 }
 
 int gettimeofday(struct timeval *tv, void *tz) {
-    static int (*real_gettimeofday)(struct timeval *tv, void *tz) = NULL;
+    static int (*real_gettimeofday)(struct timeval *, void *) = NULL;
     int res;
     init_clockslow();
     if(!real_gettimeofday)
@@ -284,3 +284,61 @@ int gettimeofday(struct timeval *tv, void *tz) {
     printf_verbose(", %p);\n", tz);
     return res;
 }
+
+unsigned int sleep(unsigned int seconds) {
+    static int (*real_sleep)(unsigned int) = NULL;
+    unsigned int res;
+    init_clockslow();
+    if(!real_sleep)
+        real_sleep = dlsym(RTLD_NEXT, "sleep");
+    if(!real_sleep)
+        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    res = real_sleep(randround(seconds/app_timefactor));
+    return randround(res*app_timefactor);
+}
+
+time_t time(time_t *t) {
+    static int (*real_time)(time_t *) = NULL;
+    time_t res;
+    init_clockslow();
+    if(!real_time)
+        real_time = dlsym(RTLD_NEXT, "time");
+    if(!real_time)
+        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    res = real_time(t);
+    if(res != -1)
+        res = round(res*app_timefactor+app_timefactor_intercept);
+    if(t)
+        *t = res;
+    return res;
+}
+
+int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout) {
+    static int (*real_select)(int, void *, void *, void *, struct timeval *) = NULL;
+    int res;
+    if(!real_select)
+        real_select = dlsym(RTLD_NEXT, "select");
+    if(!real_select)
+        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    timeval_div(timeout, 1);
+    res = real_select(nfds, readfds, writefds, exceptfds, timeout);
+    timeval_mul(timeout, 1);
+    return res;
+}
+
+int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, const struct timespec *timeout, const sigset_t *sigmask) {
+    static int (*real_pselect)(int, void *, void *, void *, const struct timespec *, const void *) = NULL;
+    int res;
+    if(!real_pselect)
+        real_pselect = dlsym(RTLD_NEXT, "pselect");
+    if(!real_pselect)
+        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    if(timeout) {
+        struct timespec timeout_ = *timeout;
+        timespec_div(&timeout_, 1);
+        res = real_pselect(nfds, readfds, writefds, exceptfds, &timeout_, sigmask);
+    } else
+        res = real_pselect(nfds, readfds, writefds, exceptfds, timeout, sigmask);
+    return res;
+}
+
