@@ -145,3 +145,22 @@ int nanosleep(const struct timespec *req, struct timespec *rem) {
     printf_verbose(");\n");
     return res;
 }
+
+int gettimeofday(struct timeval *tv, void *tz) {
+    static int (*real_gettimeofday)(struct timeval *tv, void *tz) = NULL;
+    int res;
+    init_clockslow();
+    if(!real_gettimeofday)
+        real_gettimeofday = dlsym(RTLD_NEXT, "gettimeofday");
+    if(!real_gettimeofday)
+        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    res = real_gettimeofday(tv, tz);
+    if(tv) {
+        tv->tv_sec = 0;
+        tv->tv_usec = 0;
+    }
+    printf_verbose("gettimeofday(");
+    printf_verbose_timeval(tv);
+    printf_verbose(", %p);\n", tz);
+    return res;
+}
