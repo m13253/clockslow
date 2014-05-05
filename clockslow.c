@@ -280,7 +280,9 @@ unsigned int sleep(unsigned int seconds) {
     unsigned int res;
     load_real(sleep);
     res = real_sleep(randround(seconds/app_timefactor));
-    return randround(res*app_timefactor);
+    res = randround(res*app_timefactor);
+    printf_verbose("sleep(%u) = %u;\n", seconds, res);
+    return res;
 }
 
 time_t time(time_t *t) {
@@ -290,6 +292,7 @@ time_t time(time_t *t) {
     res = real_time(t);
     if(res != -1)
         res = round(res*app_timefactor+app_timefactor_intercept);
+    printf_verbose("time(%p) = %" PRId64 ";\n", t, (int64_t) res);
     if(t)
         *t = res;
     return res;
@@ -299,6 +302,9 @@ int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struc
     static int (*real_select)(int, void *, void *, void *, struct timeval *) = NULL;
     int res;
     load_real(select);
+    printf_verbose("select(..., ");
+    printf_verbose_timeval(timeout);
+    printf_verbose(");\n");
     timeval_div(timeout, 1);
     res = real_select(nfds, readfds, writefds, exceptfds, timeout);
     timeval_mul(timeout, 1);
@@ -309,6 +315,9 @@ int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, cons
     static int (*real_pselect)(int, void *, void *, void *, const struct timespec *, const void *) = NULL;
     int res;
     load_real(pselect);
+    printf_verbose("pselect(..., ");
+    printf_verbose_timespec(timeout);
+    printf_verbose(", ...);\n");
     if(timeout) {
         struct timespec timeout_ = *timeout;
         timespec_div(&timeout_, 1);
@@ -322,6 +331,7 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
     static int (*real_poll)(struct pollfd *, nfds_t, int) = NULL;
     int res;
     load_real(poll);
+    printf_verbose("poll(..., %d);", timeout);
     if(timeout > 0)
         timeout = randround(timeout/app_timefactor);
     res = real_poll(fds, nfds, timeout);
@@ -332,6 +342,9 @@ int ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *timeout_ts, co
     static int (*real_ppoll)(struct pollfd *, nfds_t, const struct timespec *, const sigset_t *) = NULL;
     int res;
     load_real(ppoll);
+    printf_verbose("ppoll(..., ");
+    printf_verbose_timespec(timeout_ts);
+    printf_verbose(", ...);\n");
     if(timeout_ts) {
         struct timespec timeout_ts_ = *timeout_ts;
         timespec_div(&timeout_ts_, 1);
@@ -345,6 +358,7 @@ int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout)
     static int (*real_epoll_wait)(int, struct epoll_event *, int, int) = NULL;
     int res;
     load_real(epoll_wait);
+    printf_verbose("epoll_wait(..., %d);\n", timeout);
     if(timeout != -1)
         timeout = randround(timeout/app_timefactor);
     res = real_epoll_wait(epfd, events, maxevents, timeout);
@@ -355,8 +369,45 @@ int epoll_pwait(int epfd, struct epoll_event *events, int maxevents, int timeout
     static int (*real_epoll_pwait)(int, struct epoll_event *, int, int, const sigset_t *) = NULL;
     int res;
     load_real(epoll_pwait);
+    printf_verbose("epoll_pwait(..., %d, ...);\n", timeout);
     if(timeout > 0)
         timeout = randround(timeout/app_timefactor);
     res = real_epoll_pwait(epfd, events, maxevents, timeout, sigmask);
     return res;
 }
+
+int snd_pcm_open(void) {
+    printf_verbose("snd_pcm_open(...) = BLOCKED;");
+    return -1;
+}
+
+int snd_pcm_open_lconf(void) {
+    printf_verbose("snd_pcm_open_lconf(...) = BLOCKED;");
+    return -1;
+}
+
+int snd_pcm_open_fallback(void) {
+    printf_verbose("snd_pcm_open_fallback(...) = BLOCKED;");
+    return -1;
+}
+
+void *pa_simple_new(void) {
+    printf_verbose("pa_simple_new(...) = BLOCKED;");
+    return NULL;
+}
+
+void *pa_context_new(void) {
+    printf_verbose("pa_context_new(...) = BLOCKED;");
+    return NULL;
+}
+
+void *jack_client_open(void) {
+    printf_verbose("jack_client_open(...) = BLOCKED;");
+    return NULL;
+}
+
+int oss_pcm_open(void) {
+    printf_verbose("oss_pcm_open(...) = BLOCKED;");
+    return -1;
+}
+
