@@ -14,7 +14,7 @@ install: libclockslow.so clockslow.sh
 	install -Dm0755 clockslow.sh $(PREFIX)/bin/clockslow
 
 uninstall:
-	rm -f $(PREFIX)/lib/libclockslow.so $(PREFIX)/bin/clockslow
+	rm -f $(PREFIX)/bin/clockslow $(PREFIX)/lib/libclockslow.so
 
 libclockslow.so: clockslow.c
 	$(CC) -o libclockslow.so -shared -fPIC -Wall $(CFLAGS) clockslow.c -ldl -lm
