@@ -93,12 +93,15 @@ static long randround(double x) {
     return (long) xint;
 }
 
-static void timespec_add_double(struct timespec *ts1, double ts2) {
+static void timespec_add_double(struct timespec *ts1, double ts2, int use_randround) {
     double i, f;
     if(!ts1) return;
     f = modf(ts2, &i);
     ts1->tv_sec += i;
-    ts1->tv_nsec += randround(f*1000000000);
+    if(use_randround)
+        ts1->tv_nsec += randround(f*1000000000);
+    else
+        ts1->tv_nsec += round(f*1000000000);
     if(ts1->tv_nsec >= 1000000000) {
         ts1->tv_nsec -= 1000000000;
         ts1->tv_sec++;
@@ -108,28 +111,37 @@ static void timespec_add_double(struct timespec *ts1, double ts2) {
     }
 }
 
-static void timespec_mul(struct timespec *ts) {
+static void timespec_mul(struct timespec *ts, int use_randround) {
     double i, f;
     if(!ts) return;
     f = modf(ts->tv_sec*app_timefactor, &i);
     ts->tv_sec = i;
-    ts->tv_nsec = randround(ts->tv_nsec*app_timefactor+f*1000000000);
+    if(use_randround)
+        ts->tv_nsec = randround(ts->tv_nsec*app_timefactor+f*1000000000);
+    else
+        ts->tv_nsec = round(ts->tv_nsec*app_timefactor+f*1000000000);
 }
 
-static void timespec_div(struct timespec *ts) {
+static void timespec_div(struct timespec *ts, int use_randround) {
     double i, f;
     if(!ts) return;
     f = modf(ts->tv_sec/app_timefactor, &i);
     ts->tv_sec = i;
-    ts->tv_nsec = randround(ts->tv_nsec/app_timefactor+f*1000000000);
+    if(use_randround)
+        ts->tv_nsec = randround(ts->tv_nsec/app_timefactor+f*1000000000);
+    else
+        ts->tv_nsec = round(ts->tv_nsec/app_timefactor+f*1000000000);
 }
 
-static void timeval_add_double(struct timeval *tv1, double tv2) {
+static void timeval_add_double(struct timeval *tv1, double tv2, int use_randround) {
     double i, f;
     if(!tv1) return;
     f = modf(tv2, &i);
     tv1->tv_sec += i;
-    tv1->tv_usec += randround(f*1000000);
+    if(use_randround)
+        tv1->tv_usec += randround(f*1000000);
+    else
+        tv1->tv_usec += round(f*1000000);
     if(tv1->tv_usec >= 1000000) {
         tv1->tv_usec -= 1000000;
         tv1->tv_sec++;
@@ -139,20 +151,26 @@ static void timeval_add_double(struct timeval *tv1, double tv2) {
     }
 }
 
-static void timeval_mul(struct timeval *tv) {
+static void timeval_mul(struct timeval *tv, int use_randround) {
     double i, f;
     if(!tv) return;
     f = modf(tv->tv_sec*app_timefactor, &i);
     tv->tv_sec = i;
-    tv->tv_usec = randround(tv->tv_usec*app_timefactor+f*1000000);
+    if(use_randround)
+        tv->tv_usec = randround(tv->tv_usec*app_timefactor+f*1000000);
+    else
+        tv->tv_usec = round(tv->tv_usec*app_timefactor+f*1000000);
 }
 
-static void timeval_div(struct timeval *tv) {
+static void timeval_div(struct timeval *tv, int use_randround) {
     double i, f;
     if(!tv) return;
     f = modf(tv->tv_sec/app_timefactor, &i);
     tv->tv_sec = i;
-    tv->tv_usec = randround(tv->tv_usec/app_timefactor+f*1000000);
+    if(use_randround)
+        tv->tv_usec = randround(tv->tv_usec/app_timefactor+f*1000000);
+    else
+        tv->tv_usec = round(tv->tv_usec/app_timefactor+f*1000000);
 }
 
 int alarm(unsigned seconds) {
@@ -215,10 +233,10 @@ int nanosleep(const struct timespec *req, struct timespec *rem) {
         real_nanosleep = dlsym(RTLD_NEXT, "nanosleep");
     if(!real_nanosleep)
         fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
-    timespec_mul(&req_);
+    timespec_mul(&req_, 1);
     res = real_nanosleep(&req_, rem);
     if(rem)
-        timespec_div(rem);
+        timespec_div(rem, 1);
     printf_verbose("nanosleep(");
     printf_verbose_timespec(req);
     printf_verbose(", ");
