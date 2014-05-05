@@ -40,18 +40,18 @@ static void init_clockslow(void) {
             struct timeval tv;
             real_gettimeofday(&tv, NULL);
             app_timestart = tv.tv_sec + tv.tv_usec/1000000.0;
-            printf_verbose("%s: set " APP_ENV_PREFIX "_START to %lf\n", APP_NAME, app_timestart);
+            fprintf(stderr, "%s: set " APP_ENV_PREFIX "_START to %lf\n", APP_NAME, app_timestart);
         }
         if(timefactor) {
             char *endptr;
             double res = strtod(timefactor, &endptr);
-            if(timefactor != endptr && isnormal(res) && res != 0.0) {
+            if(timefactor != endptr && isnormal(res) && res > 0) {
                 app_timefactor = res;
                 printf_verbose("%s: set " APP_ENV_PREFIX "_FACTOR to %.3f\n", APP_NAME, app_timefactor);
             }
         }
         if(app_timefactor == 1.0)
-            printf_verbose("%s: set " APP_ENV_PREFIX "_FACTOR to 1.0\n", APP_NAME);
+            fprintf(stderr, "%s: set " APP_ENV_PREFIX "_FACTOR to 1.0\n", APP_NAME);
         app_timefactor_intercept = (1-app_timefactor)*app_timestart;
     }
 }
