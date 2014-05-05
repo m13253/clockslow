@@ -79,6 +79,12 @@ static void printf_verbose_timeval(const struct timeval *tv) {
         printf_verbose("NULL");
 }
 
+#ifdef DISABLE_VERBOSE
+#define printf_verbose(...)
+#define printf_verbose_timespec(ts)
+#define printf_verbose_timeval(tv)
+#endif
+
 static float fastrand() {
     static uint32_t mirand = 1;
     uint32_t a;

@@ -11,4 +11,7 @@
 // CLOCKSLOW_FACTOR: The speed factor of time modification.
 // CLOCKSLOW_VERBOSE: If not empty, print debugging information.
 
+// Uncomment the following line to completely disable debugging information to speed up execution.
+//#define DISABLE_VERBOSE
+
 #endif
