@@ -215,8 +215,12 @@ int clock_gettime(clockid_t clk_id, struct timespec *tp) {
         fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
     res = real_clock_gettime(clk_id, tp);
     if(tp) {
-        tp->tv_sec = 0;
-        tp->tv_nsec = 0;
+        if(clk_id == CLOCK_REALTIME || clk_id == CLOCK_REALTIME_COARSE) {
+            timespec_add_double(tp, -app_timestart, 0);
+            timespec_mul(tp, 0);
+            timespec_add_double(tp, app_timestart, 0);
+        } else
+            timespec_mul(tp, 0);
     }
     printf_verbose("clock_gettime(%" PRId32 ", ", (int32_t) clk_id);
     printf_verbose_timespec(tp);
@@ -255,8 +259,9 @@ int gettimeofday(struct timeval *tv, void *tz) {
         fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
     res = real_gettimeofday(tv, tz);
     if(tv) {
-        tv->tv_sec = 0;
-        tv->tv_usec = 0;
+        timeval_add_double(tv, -app_timestart, 0);
+        timeval_mul(tv, 0);
+        timeval_add_double(tv, app_timestart, 0);
     }
     printf_verbose("gettimeofday(");
     printf_verbose_timeval(tv);
