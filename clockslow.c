@@ -12,6 +12,7 @@
 
 static double app_timestart = NAN;
 static double app_timefactor = 1;
+static double app_timefactor_intercept = NAN; // (1-app_timefactor)*app_timestart
 static int app_verbose = 0;
 
 static void printf_verbose(const char *format, ...);
@@ -42,11 +43,14 @@ static void init_clockslow(void) {
         if(timefactor) {
             char *endptr;
             double res = strtod(timefactor, &endptr);
-            if(timefactor != endptr && isnormal(res) && res != 0.0)
+            if(timefactor != endptr && isnormal(res) && res != 0.0) {
                 app_timefactor = res;
+                printf_verbose("%s: set " APP_ENV_PREFIX "_FACTOR to %.3f\n", APP_NAME, app_timefactor);
+            }
         }
         if(app_timefactor == 1.0)
             printf_verbose("%s: set " APP_ENV_PREFIX "_FACTOR to 1.0\n", APP_NAME);
+        app_timefactor_intercept = (1-app_timefactor)*app_timestart;
     }
 }
 
@@ -230,9 +234,8 @@ int clock_gettime(clockid_t clk_id, struct timespec *tp) {
     res = real_clock_gettime(clk_id, tp);
     if(tp) {
         if(clk_id == CLOCK_REALTIME || clk_id == CLOCK_REALTIME_COARSE) {
-            timespec_add_double(tp, -app_timestart, 0);
             timespec_mul(tp, 0);
-            timespec_add_double(tp, app_timestart, 0);
+            timespec_add_double(tp, app_timefactor_intercept, 0);
         } else
             timespec_mul(tp, 0);
     }
@@ -273,9 +276,8 @@ int gettimeofday(struct timeval *tv, void *tz) {
         fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
     res = real_gettimeofday(tv, tz);
     if(tv) {
-        timeval_add_double(tv, -app_timestart, 0);
         timeval_mul(tv, 0);
-        timeval_add_double(tv, app_timestart, 0);
+        timeval_add_double(tv, app_timefactor_intercept, 0);
     }
     printf_verbose("gettimeofday(");
     printf_verbose_timeval(tv);
