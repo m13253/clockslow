@@ -4,10 +4,12 @@
 #include <dlfcn.h>
 #include <math.h>
 #include <inttypes.h>
+#include <poll.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/epoll.h>
 #include <time.h>
 
 static double app_timestart = NAN;
@@ -191,15 +193,19 @@ static void timeval_div(struct timeval *tv, int use_randround) {
     timeval_norm(tv);
 }
 
+#define load_real(x) { \
+    init_clockslow(); \
+    if(!real_ ## x ) \
+        real_ ## x = dlsym(RTLD_NEXT, #x ); \
+    if(!real_ ## x ) \
+        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror()); \
+}
+
 int alarm(unsigned seconds) {
     static int (*real_alarm)(unsigned) = NULL;
     int res;
     int seconds_ = seconds;
-    init_clockslow();
-    if(!real_alarm)
-        real_alarm = dlsym(RTLD_NEXT, "alarm");
-    if(!real_alarm)
-        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    load_real(alarm);
     printf_verbose("alarm(%u);\n", seconds);
     seconds_ = randround(seconds_ * app_timefactor);
     if(seconds_ <= 0)
@@ -211,11 +217,7 @@ int alarm(unsigned seconds) {
 clock_t clock(void) {
     static clock_t (*real_clock)(void) = NULL;
     clock_t res;
-    init_clockslow();
-    if(!real_clock)
-        real_clock = dlsym(RTLD_NEXT, "clock");
-    if(!real_clock)
-        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    load_real(clock);
     res = real_clock();
     if(res != -1)
         res = round(res*app_timefactor);
@@ -226,11 +228,7 @@ clock_t clock(void) {
 int clock_gettime(clockid_t clk_id, struct timespec *tp) {
     static int (*real_clock_gettime)(clockid_t, struct timespec *) = NULL;
     int res;
-    init_clockslow();
-    if(!real_clock_gettime)
-        real_clock_gettime = dlsym(RTLD_NEXT, "clock_gettime");
-    if(!real_clock_gettime)
-        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    load_real(clock_gettime);
     res = real_clock_gettime(clk_id, tp);
     if(tp) {
         if(clk_id == CLOCK_REALTIME || clk_id == CLOCK_REALTIME_COARSE) {
@@ -249,11 +247,7 @@ int nanosleep(const struct timespec *req, struct timespec *rem) {
     static int (*real_nanosleep)(const struct timespec *, struct timespec *) = NULL;
     struct timespec req_ = *req;
     int res;
-    init_clockslow();
-    if(!real_nanosleep)
-        real_nanosleep = dlsym(RTLD_NEXT, "nanosleep");
-    if(!real_nanosleep)
-        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    load_real(nanosleep);
     timespec_div(&req_, 1);
     res = real_nanosleep(&req_, rem);
     if(rem)
@@ -269,11 +263,7 @@ int nanosleep(const struct timespec *req, struct timespec *rem) {
 int gettimeofday(struct timeval *tv, void *tz) {
     static int (*real_gettimeofday)(struct timeval *, void *) = NULL;
     int res;
-    init_clockslow();
-    if(!real_gettimeofday)
-        real_gettimeofday = dlsym(RTLD_NEXT, "gettimeofday");
-    if(!real_gettimeofday)
-        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    load_real(gettimeofday);
     res = real_gettimeofday(tv, tz);
     if(tv) {
         timeval_mul(tv, 0);
@@ -288,11 +278,7 @@ int gettimeofday(struct timeval *tv, void *tz) {
 unsigned int sleep(unsigned int seconds) {
     static int (*real_sleep)(unsigned int) = NULL;
     unsigned int res;
-    init_clockslow();
-    if(!real_sleep)
-        real_sleep = dlsym(RTLD_NEXT, "sleep");
-    if(!real_sleep)
-        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    load_real(sleep);
     res = real_sleep(randround(seconds/app_timefactor));
     return randround(res*app_timefactor);
 }
@@ -300,11 +286,7 @@ unsigned int sleep(unsigned int seconds) {
 time_t time(time_t *t) {
     static int (*real_time)(time_t *) = NULL;
     time_t res;
-    init_clockslow();
-    if(!real_time)
-        real_time = dlsym(RTLD_NEXT, "time");
-    if(!real_time)
-        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    load_real(time);
     res = real_time(t);
     if(res != -1)
         res = round(res*app_timefactor+app_timefactor_intercept);
@@ -316,10 +298,7 @@ time_t time(time_t *t) {
 int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout) {
     static int (*real_select)(int, void *, void *, void *, struct timeval *) = NULL;
     int res;
-    if(!real_select)
-        real_select = dlsym(RTLD_NEXT, "select");
-    if(!real_select)
-        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    load_real(select);
     timeval_div(timeout, 1);
     res = real_select(nfds, readfds, writefds, exceptfds, timeout);
     timeval_mul(timeout, 1);
@@ -329,10 +308,7 @@ int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struc
 int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, const struct timespec *timeout, const sigset_t *sigmask) {
     static int (*real_pselect)(int, void *, void *, void *, const struct timespec *, const void *) = NULL;
     int res;
-    if(!real_pselect)
-        real_pselect = dlsym(RTLD_NEXT, "pselect");
-    if(!real_pselect)
-        fprintf(stderr, "%s: %s\n", APP_NAME, dlerror());
+    load_real(pselect);
     if(timeout) {
         struct timespec timeout_ = *timeout;
         timespec_div(&timeout_, 1);
@@ -342,3 +318,45 @@ int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, cons
     return res;
 }
 
+int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
+    static int (*real_poll)(struct pollfd *, nfds_t, int) = NULL;
+    int res;
+    load_real(poll);
+    if(timeout > 0)
+        timeout = randround(timeout/app_timefactor);
+    res = real_poll(fds, nfds, timeout);
+    return res;
+}
+
+int ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *timeout_ts, const sigset_t *sigmask) {
+    static int (*real_ppoll)(struct pollfd *, nfds_t, const struct timespec *, const sigset_t *) = NULL;
+    int res;
+    load_real(ppoll);
+    if(timeout_ts) {
+        struct timespec timeout_ts_ = *timeout_ts;
+        timespec_div(&timeout_ts_, 1);
+        res = real_ppoll(fds, nfds, &timeout_ts_, sigmask);
+    } else
+        res = real_ppoll(fds, nfds, timeout_ts, sigmask);
+    return res;
+}
+
+int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout) {
+    static int (*real_epoll_wait)(int, struct epoll_event *, int, int) = NULL;
+    int res;
+    load_real(epoll_wait);
+    if(timeout != -1)
+        timeout = randround(timeout/app_timefactor);
+    res = real_epoll_wait(epfd, events, maxevents, timeout);
+    return res;
+}
+
+int epoll_pwait(int epfd, struct epoll_event *events, int maxevents, int timeout, const sigset_t *sigmask) {
+    static int (*real_epoll_pwait)(int, struct epoll_event *, int, int, const sigset_t *) = NULL;
+    int res;
+    load_real(epoll_pwait);
+    if(timeout > 0)
+        timeout = randround(timeout/app_timefactor);
+    res = real_epoll_pwait(epfd, events, maxevents, timeout, sigmask);
+    return res;
+}
