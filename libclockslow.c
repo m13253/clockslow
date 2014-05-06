@@ -388,6 +388,8 @@ int timer_settime(timer_t timerid, int flags, const struct itimerspec *new_value
         timespec_div(&ltmp, 0);
         larger2timespec(&ltmp, &new_value_.it_interval);
         timespec2larger(&new_value->it_value, &ltmp);
+        if(flags & TIMER_ABSTIME)
+            timespec_add_double(&ltmp, -app_timefactor_intercept);
         timespec_div(&ltmp, 1);
         larger2timespec(&ltmp, &new_value_.it_value);
     }
