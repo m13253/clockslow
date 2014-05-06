@@ -361,6 +361,49 @@ time_t time(time_t *t) {
     return res;
 }
 
+int timer_gettime(timer_t timerid, struct itimerspec *curr_value) {
+    static int (*real_timer_gettime)(timer_t, struct itimerspec *) = NULL;
+    int res;
+    load_real(timer_gettime);
+    res = real_timer_gettime(timerid, curr_value);
+    if(curr_value) {
+        struct largertimespec ltmp;
+        timespec2larger(&curr_value->it_interval, &ltmp);
+        timespec_mul(&ltmp, 0);
+        larger2timespec(&ltmp, &curr_value->it_interval);
+        timespec2larger(&curr_value->it_value, &ltmp);
+        timespec_mul(&ltmp, 1);
+        larger2timespec(&ltmp, &curr_value->it_value);
+    }
+    return res;
+}
+
+int timer_settime(timer_t timerid, int flags, const struct itimerspec *new_value, struct itimerspec *old_value) {
+    static int (*timer_settime)(timer_t, int, const struct itimerspec *, struct itimerspec *) = NULL;
+    struct itimerspec new_value_ = {{0, 0}, {0, 0}};
+    int res;
+    if(new_value) {
+        struct largertimespec ltmp;
+        timespec2larger(&new_value->it_interval, &ltmp);
+        timespec_div(&ltmp, 0);
+        larger2timespec(&ltmp, &new_value_.it_interval);
+        timespec2larger(&new_value->it_value, &ltmp);
+        timespec_div(&ltmp, 1);
+        larger2timespec(&ltmp, &new_value_.it_value);
+    }
+    res = timer_settime(timerid, flags, &new_value_, old_value);
+    if(old_value) {
+        struct largertimespec ltmp;
+        timespec2larger(&old_value->it_interval, &ltmp);
+        timespec_mul(&ltmp, 0);
+        larger2timespec(&ltmp, &old_value->it_interval);
+        timespec2larger(&old_value->it_value, &ltmp);
+        timespec_mul(&ltmp, 1);
+        larger2timespec(&ltmp, &old_value->it_value);
+    }
+    return res;
+}
+
 int usleep(useconds_t usec) {
     static int (*real_usleep)(useconds_t) = NULL;
     int res;
