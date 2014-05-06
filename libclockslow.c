@@ -359,10 +359,37 @@ int gettimeofday(struct timeval *tv, void *tz) {
     return res;
 }
 
+int getitimer(int which, struct itimerval *curr_value) {
+    static int (*real_getitimer)(int, struct itimerval *) = NULL;
+    int res;
+    load_real(getitimer);
+    res = real_getitimer(which, curr_value);
+    if(curr_value) {
+        timeval_mul(&curr_value->it_interval, 0);
+        timeval_mul(&curr_value->it_value, 1);
+    }
+}
+
 int settimeofday(const struct timeval *tv, const struct timezone *tz) {
     printf_verbose("settimeofday(...) = BLOCKED;");
     errno = EPERM;
     return -1;
+}
+
+int setitimer(int which, const struct itimerval *new_value, struct itimerval *old_value) {
+    static int (*real_setitimer)(int, const struct itimerval *, struct itimerval *) = NULL;
+    int res;
+    load_real(setitimer);
+    if(new_value) {
+        timeval_div(&new_value->it_interval, 0);
+        timeval_div(&new_value->it_value, 1);
+    }
+    res = real_setitimer(which, new_value, old_value);
+    if(old_value) {
+        timeval_mul(&old_value->it_interval, 0);
+        timeval_mul(&old_value->it_value, 1);
+    }
+    return res;
 }
 
 unsigned int sleep(unsigned int seconds) {
@@ -411,6 +438,7 @@ int timer_settime(timer_t timerid, int flags, const struct itimerspec *new_value
     static int (*timer_settime)(timer_t, int, const struct itimerspec *, struct itimerspec *) = NULL;
     struct itimerspec new_value_ = {{0, 0}, {0, 0}};
     int res;
+    load_real(timer_settime);
     if(new_value) {
         struct largertimespec ltmp;
         timespec2larger(&new_value->it_interval, &ltmp);
@@ -422,7 +450,7 @@ int timer_settime(timer_t timerid, int flags, const struct itimerspec *new_value
         timespec_div(&ltmp, 1);
         larger2timespec(&ltmp, &new_value_.it_value);
     }
-    res = timer_settime(timerid, flags, &new_value_, old_value);
+    res = real_timer_settime(timerid, flags, &new_value_, old_value);
     if(old_value) {
         struct largertimespec ltmp;
         timespec2larger(&old_value->it_interval, &ltmp);
@@ -441,7 +469,7 @@ useconds_t ularm(useconds_t usecs, useconds_t interval) {
     load_real(ualarm);
     usecs = randround(usecs/app_timefactor);
     interval = round(interval/app_timefactor);
-    res = ualarm(usecs, interval);
+    res = real_ualarm(usecs, interval);
     return randround(res*app_timefactor);
 }
 
