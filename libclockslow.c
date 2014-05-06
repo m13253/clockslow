@@ -359,6 +359,11 @@ int gettimeofday(struct timeval *tv, void *tz) {
     return res;
 }
 
+struct itimerval { // Defined in <sys/time.h> but there is a conflict so that I can not include it.
+    struct timeval it_interval;
+    struct timeval it_value;
+};
+
 int getitimer(int which, struct itimerval *curr_value) {
     static int (*real_getitimer)(int, struct itimerval *) = NULL;
     int res;
@@ -368,9 +373,10 @@ int getitimer(int which, struct itimerval *curr_value) {
         timeval_mul(&curr_value->it_interval, 0);
         timeval_mul(&curr_value->it_value, 1);
     }
+    return res;
 }
 
-int settimeofday(const struct timeval *tv, const struct timezone *tz) {
+int settimeofday(const struct timeval *tv, const void *tz) {
     printf_verbose("settimeofday(...) = BLOCKED;");
     errno = EPERM;
     return -1;
@@ -378,13 +384,15 @@ int settimeofday(const struct timeval *tv, const struct timezone *tz) {
 
 int setitimer(int which, const struct itimerval *new_value, struct itimerval *old_value) {
     static int (*real_setitimer)(int, const struct itimerval *, struct itimerval *) = NULL;
+    struct itimerval new_value_ = {{0, 0}, {0, 0}};
     int res;
     load_real(setitimer);
     if(new_value) {
-        timeval_div(&new_value->it_interval, 0);
-        timeval_div(&new_value->it_value, 1);
+        new_value_ = *new_value;
+        timeval_div(&new_value_.it_interval, 0);
+        timeval_div(&new_value_.it_value, 1);
     }
-    res = real_setitimer(which, new_value, old_value);
+    res = real_setitimer(which, &new_value_, old_value);
     if(old_value) {
         timeval_mul(&old_value->it_interval, 0);
         timeval_mul(&old_value->it_value, 1);
@@ -435,7 +443,7 @@ int timer_gettime(timer_t timerid, struct itimerspec *curr_value) {
 }
 
 int timer_settime(timer_t timerid, int flags, const struct itimerspec *new_value, struct itimerspec *old_value) {
-    static int (*timer_settime)(timer_t, int, const struct itimerspec *, struct itimerspec *) = NULL;
+    static int (*real_timer_settime)(timer_t, int, const struct itimerspec *, struct itimerspec *) = NULL;
     struct itimerspec new_value_ = {{0, 0}, {0, 0}};
     int res;
     load_real(timer_settime);
