@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-if [ "$#" -lt 2 ]
+if [ "$#" -lt 1 ]
 then
     echo 'Clockslow: Trick app to let it think time goes slower or faster, inspired by'
     echo 'Speed Gear.'
@@ -49,4 +49,5 @@ export CLOCKSLOW_START="$(date +%s)"
 export LD_LIBRARY_PATH="$NEW_LD_LIBRARY_PATH"
 export LD_PRELOAD=libclockslow.so
 exec "$@"
+echo 'Command not specified, starting bash in Clockslow environment.'
 exec bash -i
