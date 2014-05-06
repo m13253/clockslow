@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <sys/epoll.h>
 #include <time.h>
+#include <unistd.h>
 
 static double app_timestart = NAN;
 static double app_timefactor = 1;
@@ -254,16 +255,16 @@ static void timeval_div(struct timeval *tv, int use_randround) {
         fprintf(stderr, "%s: %s\n", APP_NAME, dlerror()); \
 }
 
-int alarm(unsigned seconds) {
-    static int (*real_alarm)(unsigned) = NULL;
-    int res;
-    int seconds_ = seconds;
+unsigned int alarm(unsigned int seconds) {
+    static int (*real_alarm)(unsigned int) = NULL;
+    unsigned int res;
+    long seconds_ = seconds;
     load_real(alarm);
     printf_verbose("alarm(%u);\n", seconds);
     seconds_ = randround(seconds_ * app_timefactor);
     if(seconds_ <= 0)
         seconds_ = seconds;
-    res = real_alarm(seconds_);
+    res = real_alarm((unsigned int) seconds_);
     return res;
 }
 
@@ -357,6 +358,16 @@ time_t time(time_t *t) {
     printf_verbose("time(%p) = %" PRId64 ";\n", t, (int64_t) res);
     if(t)
         *t = res;
+    return res;
+}
+
+int usleep(useconds_t usec) {
+    static int (*real_usleep)(useconds_t) = NULL;
+    int res;
+    load_real(usleep);
+    printf_verbose("usleep(%" PRIu32 ");\n", (uint32_t) usec);
+    usec = randround(usec/app_timefactor);
+    res = real_usleep(usec);
     return res;
 }
 
