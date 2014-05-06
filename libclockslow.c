@@ -404,6 +404,16 @@ int timer_settime(timer_t timerid, int flags, const struct itimerspec *new_value
     return res;
 }
 
+useconds_t ularm(useconds_t usecs, useconds_t interval) {
+    static useconds_t (*real_ualarm)(useconds_t, useconds_t) = NULL;
+    useconds_t res;
+    load_real(ualarm);
+    usecs = randround(usecs/app_timefactor);
+    interval = round(interval/app_timefactor);
+    res = ualarm(usecs, interval);
+    return randround(res*app_timefactor);
+}
+
 int usleep(useconds_t usec) {
     static int (*real_usleep)(useconds_t) = NULL;
     int res;
