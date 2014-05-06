@@ -280,6 +280,22 @@ clock_t clock(void) {
     return res;
 }
 
+int clock_getres(clockid_t clk_id, struct timespec *res) {
+    static int (*real_clock_getres)(clockid_t, struct timespec *) = NULL;
+    int retval;
+    load_real(clock_getres);
+    retval = real_clock_getres(clk_id, res);
+    if(res) {
+        struct largertimespec lres;
+        timespec2larger(res, &lres);
+        timespec_mul(&lres, 0);
+        if(lres.tv_sec == 0 && lres.tv_nsec == 0)
+            lres.tv_nsec = 1;
+        larger2timespec(&lres, res);
+    }
+    return retval;
+}
+
 int clock_gettime(clockid_t clk_id, struct timespec *tp) {
     static int (*real_clock_gettime)(clockid_t, struct timespec *) = NULL;
     int res;
