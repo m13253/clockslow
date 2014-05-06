@@ -359,6 +359,12 @@ int gettimeofday(struct timeval *tv, void *tz) {
     return res;
 }
 
+int settimeofday(const struct timeval *tv, const struct timezone *tz) {
+    printf_verbose("settimeofday(...) = BLOCKED;");
+    errno = EPERM;
+    return -1;
+}
+
 unsigned int sleep(unsigned int seconds) {
     struct timespec req;
     struct timespec rem;
