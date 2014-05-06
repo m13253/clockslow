@@ -111,19 +111,48 @@ static float fastrand() {
     return *(float *) &a - 1;
 }
 
-static long randround(double x) {
+static long long randround(double x) {
     double xint;
     double xfrac;
     if(!isnormal(x)) return 0;
     xfrac = modf(x, &xint);
     if(xfrac > 0)
-        if(fastrand() > xfrac) return (long) xint + 1; else;
+        if(fastrand() > xfrac) return (long long) xint + 1; else;
     else if(xfrac < 0)
-        if(fastrand() < -xfrac) return (long) xint - 1;
-    return (long) xint;
+        if(fastrand() < -xfrac) return (long long) xint - 1;
+    return (long long) xint;
 }
 
-static void timespec_norm(struct timespec *ts) {
+struct largertimespec {
+    time_t    tv_sec;
+    long long tv_nsec; // longer tv_nsec to avoid overflow on 32-bit systems */
+};
+
+static void timespec2larger(const struct timespec *ts, struct largertimespec *lts) {
+    if(lts)
+        if(ts) {
+            lts->tv_sec = ts->tv_sec;
+            lts->tv_nsec = ts->tv_nsec;
+        } else {
+            lts->tv_sec = 0;
+            lts->tv_nsec = 0;
+        }
+    else;
+}
+
+static void larger2timespec(const struct largertimespec *lts, struct timespec *ts) {
+    if(ts)
+        if(lts) {
+            ts->tv_sec = lts->tv_sec;
+            ts->tv_nsec = lts->tv_nsec;
+        } else {
+            ts->tv_sec = 0;
+            ts->tv_nsec = 0;
+        }
+    else;
+}
+
+static void timespec_norm(struct largertimespec *ts) {
     if(ts->tv_nsec >= 1000000000 || ts->tv_nsec < 0) {
         ts->tv_sec += ts->tv_nsec/1000000000;
         ts->tv_nsec %= 1000000000;
@@ -134,7 +163,7 @@ static void timespec_norm(struct timespec *ts) {
     }
 }
 
-static void timespec_add_double(struct timespec *ts1, double ts2, int use_randround) {
+static void timespec_add_double(struct largertimespec *ts1, double ts2, int use_randround) {
     double i, f;
     if(!ts1) return;
     f = modf(ts2, &i);
@@ -146,7 +175,7 @@ static void timespec_add_double(struct timespec *ts1, double ts2, int use_randro
     timespec_norm(ts1);
 }
 
-static void timespec_mul(struct timespec *ts, int use_randround) {
+static void timespec_mul(struct largertimespec *ts, int use_randround) {
     double i, f;
     if(!ts) return;
     f = modf(ts->tv_sec*app_timefactor, &i);
@@ -158,7 +187,7 @@ static void timespec_mul(struct timespec *ts, int use_randround) {
     timespec_norm(ts);
 }
 
-static void timespec_div(struct timespec *ts, int use_randround) {
+static void timespec_div(struct largertimespec *ts, int use_randround) {
     double i, f;
     if(!ts) return;
     f = modf(ts->tv_sec/app_timefactor, &i);
@@ -255,11 +284,12 @@ int clock_gettime(clockid_t clk_id, struct timespec *tp) {
     load_real(clock_gettime);
     res = real_clock_gettime(clk_id, tp);
     if(tp) {
-        if(clk_id == CLOCK_REALTIME || clk_id == CLOCK_REALTIME_COARSE) {
-            timespec_mul(tp, 0);
-            timespec_add_double(tp, app_timefactor_intercept, 0);
-        } else
-            timespec_mul(tp, 0);
+        struct largertimespec ltp;
+        timespec2larger(tp, &ltp);
+        timespec_mul(&ltp, 0);
+        if(clk_id == CLOCK_REALTIME || clk_id == CLOCK_REALTIME_COARSE)
+            timespec_add_double(&ltp, app_timefactor_intercept, 0);
+        larger2timespec(&ltp, tp);
     }
     printf_verbose("clock_gettime(%" PRId32 ", ", (int32_t) clk_id);
     printf_verbose_timespec(tp);
@@ -269,13 +299,19 @@ int clock_gettime(clockid_t clk_id, struct timespec *tp) {
 
 int nanosleep(const struct timespec *req, struct timespec *rem) {
     static int (*real_nanosleep)(const struct timespec *, struct timespec *) = NULL;
-    struct timespec req_ = *req;
+    struct timespec req_;
+    struct largertimespec ltmp;
     int res;
     load_real(nanosleep);
-    timespec_div(&req_, 1);
+    timespec2larger(req, &ltmp);
+    timespec_div(&ltmp, 1);
+    larger2timespec(&ltmp, &req_);
     res = real_nanosleep(&req_, rem);
-    if(rem)
-        timespec_mul(rem, 1);
+    if(rem) {
+        timespec2larger(rem, &ltmp);
+        timespec_mul(&ltmp, 1);
+        larger2timespec(&ltmp, rem);
+    }
     printf_verbose("nanosleep(");
     printf_verbose_timespec(req);
     printf_verbose(", ");
@@ -343,8 +379,11 @@ int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, cons
     printf_verbose_timespec(timeout);
     printf_verbose(", ...);\n");
     if(timeout) {
-        struct timespec timeout_ = *timeout;
-        timespec_div(&timeout_, 1);
+        struct timespec timeout_;
+        struct largertimespec ltmp;
+        timespec2larger(timeout, &ltmp);
+        timespec_div(&ltmp, 1);
+        larger2timespec(&ltmp, &timeout_);
         res = real_pselect(nfds, readfds, writefds, exceptfds, &timeout_, sigmask);
     } else
         res = real_pselect(nfds, readfds, writefds, exceptfds, timeout, sigmask);
@@ -370,8 +409,11 @@ int ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *timeout_ts, co
     printf_verbose_timespec(timeout_ts);
     printf_verbose(", ...);\n");
     if(timeout_ts) {
-        struct timespec timeout_ts_ = *timeout_ts;
-        timespec_div(&timeout_ts_, 1);
+        struct timespec timeout_ts_;
+        struct largertimespec ltmp;
+        timespec2larger(timeout_ts, &ltmp);
+        timespec_div(&ltmp, 1);
+        larger2timespec(&ltmp, &timeout_ts_);
         res = real_ppoll(fds, nfds, &timeout_ts_, sigmask);
     } else
         res = real_ppoll(fds, nfds, timeout_ts, sigmask);
