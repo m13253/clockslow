@@ -20,6 +20,7 @@
 #define _ISOC99_SOURCE
 #include "config.h"
 #include <dlfcn.h>
+#include <errno.h>
 #include <math.h>
 #include <inttypes.h>
 #include <poll.h>
@@ -298,6 +299,12 @@ int clock_gettime(clockid_t clk_id, struct timespec *tp) {
     return res;
 }
 
+int clock_settime(clockid_t clk_id, const struct timespec *tp) {
+    printf_verbose("clock_settime(...) = BLOCKED;");
+    errno = EPERM;
+    return -1;
+}
+
 int nanosleep(const struct timespec *req, struct timespec *rem) {
     static int (*real_nanosleep)(const struct timespec *, struct timespec *) = NULL;
     struct timespec req_;
@@ -389,7 +396,7 @@ int timer_settime(timer_t timerid, int flags, const struct itimerspec *new_value
         larger2timespec(&ltmp, &new_value_.it_interval);
         timespec2larger(&new_value->it_value, &ltmp);
         if(flags & TIMER_ABSTIME)
-            timespec_add_double(&ltmp, -app_timefactor_intercept);
+            timespec_add_double(&ltmp, -app_timefactor_intercept, 1);
         timespec_div(&ltmp, 1);
         larger2timespec(&ltmp, &new_value_.it_value);
     }
