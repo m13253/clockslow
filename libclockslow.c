@@ -336,11 +336,13 @@ int gettimeofday(struct timeval *tv, void *tz) {
 }
 
 unsigned int sleep(unsigned int seconds) {
-    static int (*real_sleep)(unsigned int) = NULL;
+    struct timespec req;
+    struct timespec rem;
     unsigned int res;
-    load_real(sleep);
-    res = real_sleep(randround(seconds/app_timefactor));
-    res = randround(res*app_timefactor);
+    req.tv_sec = seconds;
+    req.tv_nsec = 0;
+    nanosleep(&req, &rem);
+    res = rem.tv_sec+randround(rem.tv_nsec/1000000000);
     printf_verbose("sleep(%u) = %u;\n", seconds, res);
     return res;
 }
