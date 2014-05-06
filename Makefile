@@ -7,7 +7,7 @@ PREFIX=/usr
 all: libclockslow.so
 
 clean:
-	rm -f libclockslow.so
+	rm -f libclockslow.so libclockslow32.so
 
 install: libclockslow.so clockslow.sh
 	install -Dm0755 libclockslow.so $(PREFIX)/lib/libclockslow.so
