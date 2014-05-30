@@ -21,7 +21,7 @@ uninstall:
 
 
 libclockslow.so: libclockslow.c
-	$(CC) -o libclockslow.so -shared -fPIC -Wall $(CFLAGS) libclockslow.c -ldl -lm
+	$(CC) -o libclockslow.so -shared -fPIC -Wall -O3 $(CFLAGS) libclockslow.c -ldl -lm
 
 libclockslow32.so: libclockslow.c
-	$(CC) -o libclockslow32.so -shared -fPIC -m32 -Wall $(CFLAGS) libclockslow.c -ldl -lm
+	$(CC) -o libclockslow32.so -shared -fPIC -m32 -Wall -O3 $(CFLAGS) libclockslow.c -ldl -lm
