@@ -476,6 +476,52 @@ int timer_settime(timer_t timerid, int flags, const struct itimerspec *new_value
     return res;
 }
 
+int timerfd_gettime(int fd, struct itimerspec *curr_value) {
+    static int (*real_timerfd_gettime)(int, struct itimerspec *) = NULL;
+    int res;
+    load_real(timerfd_gettime);
+    res = real_timerfd_gettime(fd, curr_value);
+    if(curr_value) {
+        struct largertimespec ltmp;
+        timespec2larger(&curr_value->it_interval, &ltmp);
+        timespec_mul(&ltmp, 0);
+        larger2timespec(&ltmp, &curr_value->it_interval);
+        timespec2larger(&curr_value->it_value, &ltmp);
+        timespec_mul(&ltmp, 1);
+        larger2timespec(&ltmp, &curr_value->it_value);
+    }
+    return res;
+}
+
+int timerfd_settime(int fd, int flags, const struct itimerspec *new_value, struct itimerspec *old_value) {
+    static int (*real_timerfd_settime)(int, int, const struct itimerspec *, struct itimerspec *) = NULL;
+    struct itimerspec new_value_ = {{0, 0}, {0, 0}};
+    int res;
+    load_real(timerfd_settime);
+    if(new_value) {
+        struct largertimespec ltmp;
+        timespec2larger(&new_value->it_interval, &ltmp);
+        timespec_div(&ltmp, 1);
+        larger2timespec(&ltmp, &new_value_.it_interval);
+        timespec2larger(&new_value->it_value, &ltmp);
+        if(flags & TIMER_ABSTIME)
+            timespec_add_double(&ltmp, -app_timefactor_intercept, 1);
+        timespec_div(&ltmp, 1);
+        larger2timespec(&ltmp, &new_value_.it_value);
+    }
+    res = real_timerfd_settime(fd, flags, &new_value_, old_value);
+    if(old_value) {
+        struct largertimespec ltmp;
+        timespec2larger(&old_value->it_interval, &ltmp);
+        timespec_mul(&ltmp, 0);
+        larger2timespec(&ltmp, &old_value->it_interval);
+        timespec2larger(&old_value->it_value, &ltmp);
+        timespec_mul(&ltmp, 1);
+        larger2timespec(&ltmp, &old_value->it_value);
+    }
+    return res;
+}
+
 useconds_t ularm(useconds_t usecs, useconds_t interval) {
     static useconds_t (*real_ualarm)(useconds_t, useconds_t) = NULL;
     useconds_t res;
