@@ -170,37 +170,37 @@ static void timespec_norm(struct largertimespec *ts) {
     }
 }
 
-static void timespec_add_double(struct largertimespec *ts1, double ts2, int use_randround) {
+static void timespec_add_double(struct largertimespec *ts1, double ts2, int use_ceil) {
     double i, f;
     if(!ts1) return;
     f = modf(ts2, &i);
     ts1->tv_sec += i;
-    if(use_randround)
-        ts1->tv_nsec += randround(f*1000000000);
+    if(use_ceil)
+        ts1->tv_nsec += ceil(f*1000000000);
     else
         ts1->tv_nsec += round(f*1000000000);
     timespec_norm(ts1);
 }
 
-static void timespec_mul(struct largertimespec *ts, int use_randround) {
+static void timespec_mul(struct largertimespec *ts, int use_ceil) {
     double i, f;
     if(!ts) return;
     f = modf(ts->tv_sec*app_timefactor, &i);
     ts->tv_sec = i;
-    if(use_randround)
-        ts->tv_nsec = randround(ts->tv_nsec*app_timefactor+f*1000000000);
+    if(use_ceil)
+        ts->tv_nsec = ceil(ts->tv_nsec*app_timefactor+f*1000000000);
     else
         ts->tv_nsec = round(ts->tv_nsec*app_timefactor+f*1000000000);
     timespec_norm(ts);
 }
 
-static void timespec_div(struct largertimespec *ts, int use_randround) {
+static void timespec_div(struct largertimespec *ts, int use_ceil) {
     double i, f;
     if(!ts) return;
     f = modf(ts->tv_sec/app_timefactor, &i);
     ts->tv_sec = i;
-    if(use_randround)
-        ts->tv_nsec = randround(ts->tv_nsec/app_timefactor+f*1000000000);
+    if(use_ceil)
+        ts->tv_nsec = ceil(ts->tv_nsec/app_timefactor+f*1000000000);
     else
         ts->tv_nsec = round(ts->tv_nsec/app_timefactor+f*1000000000);
     timespec_norm(ts);
@@ -217,37 +217,37 @@ static void timeval_norm(struct timeval *tv) {
     }
 }
 
-static void timeval_add_double(struct timeval *tv1, double tv2, int use_randround) {
+static void timeval_add_double(struct timeval *tv1, double tv2, int use_ceil) {
     double i, f;
     if(!tv1) return;
     f = modf(tv2, &i);
     tv1->tv_sec += i;
-    if(use_randround)
-        tv1->tv_usec += randround(f*1000000);
+    if(use_ceil)
+        tv1->tv_usec += ceil(f*1000000);
     else
         tv1->tv_usec += round(f*1000000);
     timeval_norm(tv1);
 }
 
-static void timeval_mul(struct timeval *tv, int use_randround) {
+static void timeval_mul(struct timeval *tv, int use_ceil) {
     double i, f;
     if(!tv) return;
     f = modf(tv->tv_sec*app_timefactor, &i);
     tv->tv_sec = i;
-    if(use_randround)
-        tv->tv_usec = randround(tv->tv_usec*app_timefactor+f*1000000);
+    if(use_ceil)
+        tv->tv_usec = ceil(tv->tv_usec*app_timefactor+f*1000000);
     else
         tv->tv_usec = round(tv->tv_usec*app_timefactor+f*1000000);
     timeval_norm(tv);
 }
 
-static void timeval_div(struct timeval *tv, int use_randround) {
+static void timeval_div(struct timeval *tv, int use_ceil) {
     double i, f;
     if(!tv) return;
     f = modf(tv->tv_sec/app_timefactor, &i);
     tv->tv_sec = i;
-    if(use_randround)
-        tv->tv_usec = randround(tv->tv_usec/app_timefactor+f*1000000);
+    if(use_ceil)
+        tv->tv_usec = ceil(tv->tv_usec/app_timefactor+f*1000000);
     else
         tv->tv_usec = round(tv->tv_usec/app_timefactor+f*1000000);
     timeval_norm(tv);
@@ -293,7 +293,7 @@ int clock_getres(clockid_t clk_id, struct timespec *res) {
     if(res) {
         struct largertimespec lres;
         timespec2larger(res, &lres);
-        timespec_mul(&lres, 0);
+        timespec_mul(&lres, 1);
         if(lres.tv_sec == 0 && lres.tv_nsec == 0)
             lres.tv_nsec = 1;
         larger2timespec(&lres, res);
@@ -394,7 +394,7 @@ int setitimer(int which, const struct itimerval *new_value, struct itimerval *ol
     load_real(setitimer);
     if(new_value) {
         new_value_ = *new_value;
-        timeval_div(&new_value_.it_interval, 0);
+        timeval_div(&new_value_.it_interval, 1);
         timeval_div(&new_value_.it_value, 1);
     }
     res = real_setitimer(which, &new_value_, old_value);
@@ -412,7 +412,7 @@ unsigned int sleep(unsigned int seconds) {
     req.tv_sec = seconds;
     req.tv_nsec = 0;
     nanosleep(&req, &rem);
-    res = rem.tv_sec+randround(rem.tv_nsec/1000000000);
+    res = rem.tv_sec+(unsigned int) ceil(rem.tv_nsec/1000000000);
     printf_verbose("sleep(%u) = %u;\n", seconds, res);
     return res;
 }
@@ -455,7 +455,7 @@ int timer_settime(timer_t timerid, int flags, const struct itimerspec *new_value
     if(new_value) {
         struct largertimespec ltmp;
         timespec2larger(&new_value->it_interval, &ltmp);
-        timespec_div(&ltmp, 0);
+        timespec_div(&ltmp, 1);
         larger2timespec(&ltmp, &new_value_.it_interval);
         timespec2larger(&new_value->it_value, &ltmp);
         if(flags & TIMER_ABSTIME)
