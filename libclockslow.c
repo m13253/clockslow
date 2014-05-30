@@ -109,10 +109,13 @@ static void printf_verbose_timeval(const struct timeval *tv) {
 
 static float fastrand() {
     static uint32_t mirand = 1;
-    uint32_t a;
+    union { 
+        uint32_t i;
+        float f;
+    } a;
     mirand *= 16807;
-    a = (mirand & 0x7fffff) | 0x3f800000;
-    return *(float *) &a - 1;
+    a.i = (mirand & 0x7fffff) | 0x3f800000;
+    return a.f-1;
 }
 
 static long long randround(double x) {
