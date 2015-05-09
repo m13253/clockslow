@@ -117,6 +117,7 @@ static float fastrand() {
     return a.f-1;
 }
 
+// A rounding function that produces jitter, by randomly choosing floor or ceil.
 static long long randround(double x) {
     double xint;
     double xfrac;
