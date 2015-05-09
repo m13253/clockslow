@@ -42,6 +42,8 @@ static int app_verbose = 0;
 static void printf_verbose(const char *format, ...);
 
 static void init_clockslow(void) {
+    // Not thread-safe. Since we are bootstrapping, pthread mutex is unusable.
+    // Have no idea on how to solve it.
     if(isnan(app_timestart)) {
         const char *timestart = getenv(APP_ENV_PREFIX "_START");
         const char *timefactor = getenv(APP_ENV_PREFIX "_FACTOR");
