@@ -42,8 +42,7 @@ static int app_verbose = 0;
 static void printf_verbose(const char *format, ...);
 
 static void init_clockslow(void) {
-    if(isnan(app_timestart))
-    {
+    if(isnan(app_timestart)) {
         const char *timestart = getenv(APP_ENV_PREFIX "_START");
         const char *timefactor = getenv(APP_ENV_PREFIX "_FACTOR");
         const char *verbose = getenv(APP_ENV_PREFIX "_VERBOSE");
